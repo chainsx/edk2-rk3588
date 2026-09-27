@@ -33,6 +33,7 @@
 
 [Protocols]
   gExitBootServicesOsNotifyProtocolGuid     ## PRODUCES
+  gEfiLoadedImageProtocolGuid               ## CONSUMES
 
 [Depex]
   TRUE

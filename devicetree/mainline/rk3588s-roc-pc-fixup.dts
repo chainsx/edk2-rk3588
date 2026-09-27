@@ -1,0 +1,329 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/usb/pd.h>
+
+#include "rk3588s-roc-pc.dts"
+
+/*
+ * The shared upstream DTS is newer than Ubuntu 26.04's 7.0 kernel. Drop the
+ * later HDMI FRL GPIO/pinctrl and UART pinctrl-name additions to retain the
+ * v7.0 board setup.
+ */
+&hdmi0 {
+	/delete-property/ frl-enable-gpios;
+	/delete-property/ pinctrl-0;
+	/delete-property/ pinctrl-names;
+};
+
+&pinctrl {
+	/delete-node/ hdmi;
+};
+
+&uart7 {
+	/delete-property/ pinctrl-names;
+};
+
+/* The BSP's ADC recovery key is not present in the upstream board file. */
+/ {
+	adc-keys {
+		compatible = "adc-keys";
+		io-channels = <&saradc 1>;
+		io-channel-names = "buttons";
+		keyup-threshold-microvolt = <1800000>;
+		poll-interval = <100>;
+
+		recovery-key {
+			label = "F12";
+			linux,code = <KEY_F12>;
+			press-threshold-microvolt = <17000>;
+		};
+	};
+};
+
+&dp0 {
+	status = "okay";
+};
+
+&dp0_in {
+	dp0_in_vp2: endpoint {
+		remote-endpoint = <&vp2_out_dp0>;
+	};
+};
+
+&vp2 {
+	vp2_out_dp0: endpoint@a {
+		reg = <ROCKCHIP_VOP2_EP_DP0>;
+		remote-endpoint = <&dp0_in_vp2>;
+	};
+};
+
+&i2c2 {
+	usbc0: fusb302@22 {
+		compatible = "fcs,fusb302";
+		reg = <0x22>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <RK_PC4 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&usbc0_int>;
+		vbus-supply = <&vbus5v0_typec>;
+
+		usb_con: connector {
+			compatible = "usb-c-connector";
+			label = "USB-C";
+			data-role = "dual";
+			power-role = "dual";
+			try-power-role = "sink";
+			op-sink-microwatt = <1000000>;
+			sink-pdos = <PDO_FIXED(5000, 1000, PDO_FIXED_USB_COMM)>;
+			source-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
+
+			altmodes {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				altmode@0 {
+					reg = <0>;
+					svid = <0xff01>;
+					vdo = <0xffffffff>;
+				};
+			};
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					usbc0_orien_sw: endpoint {
+						remote-endpoint = <&usbdp_phy0_orientation_switch>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					usbc0_role_sw: endpoint {
+						remote-endpoint = <&dwc3_0_role_switch>;
+					};
+				};
+
+				port@2 {
+					reg = <2>;
+					dp_altmode_mux: endpoint {
+						remote-endpoint = <&usbdp_phy0_dp_altmode_mux>;
+					};
+				};
+			};
+		};
+	};
+};
+
+&package_thermal {
+	sustainable-power = <5000>;
+	polling-delay = <1000>;
+	/* Linux 7.0 rejects passive polling slower than the normal interval. */
+	polling-delay-passive = <1000>;
+
+	trips {
+		fan_trip0: trip-point0 {
+			temperature = <55000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		fan_trip1: trip-point1 {
+			temperature = <60000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		fan_trip2: trip-point2 {
+			temperature = <65000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		fan_trip3: trip-point3 {
+			temperature = <70000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		fan_trip4: trip-point4 {
+			temperature = <75000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		fan_trip5: trip-point5 {
+			temperature = <80000>;
+			hysteresis = <1000>;
+			type = "active";
+		};
+	};
+
+	cooling-maps {
+		fan_map0 {
+			trip = <&fan_trip0>;
+			cooling-device = <&fan 0 1>;
+			contribution = <1024>;
+		};
+		fan_map1 {
+			trip = <&fan_trip1>;
+			cooling-device = <&fan 1 2>;
+			contribution = <1024>;
+		};
+		fan_map2 {
+			trip = <&fan_trip2>;
+			cooling-device = <&fan 2 3>;
+			contribution = <1024>;
+		};
+		fan_map3 {
+			trip = <&fan_trip3>;
+			cooling-device = <&fan 3 4>;
+			contribution = <1024>;
+		};
+		fan_map4 {
+			trip = <&fan_trip4>;
+			cooling-device = <&fan 4 5>;
+			contribution = <1024>;
+		};
+		fan_map5 {
+			trip = <&fan_trip5>;
+			cooling-device = <&fan 5 6>;
+			contribution = <1024>;
+		};
+	};
+};
+
+&pinctrl {
+	usb {
+		usbc0_int: usbc0-int {
+			rockchip,pins = <0 RK_PC4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		typec5v_pwren: typec5v-pwren {
+			rockchip,pins = <1 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		vcc5v0_host_en: vcc5v0-host-en {
+			rockchip,pins = <1 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+/*
+ * The ROC M.2 slot is PCIe domain 4 (pcie2x1l2), routed through Combo PHY0.
+ * The upstream ROC DTS enables pcie2x1l1 (domain 3 / Combo PHY2) instead.
+ * Disable that unused host so it cannot claim the M.2 PERST# line or conflict
+ * with the USB3 PHY; enable and wire up the actual M.2 host below.
+ */
+&pcie2x1l1 {
+	status = "disabled";
+};
+
+&vcc3v3_pcie20 {
+	regulator-always-on;
+};
+
+&pcie2x1l2 {
+	reset-gpios = <&gpio3 RK_PD1 GPIO_ACTIVE_HIGH>;
+	vpcie3v3-supply = <&vcc3v3_pcie20>;
+	status = "okay";
+};
+
+/* Enable all RK3588 NPU cores for the mainline DRM accel/rocket driver. */
+&rknn_core_0 {
+	npu-supply = <&vdd_npu_s0>;
+	sram-supply = <&vdd_npu_s0>;
+	status = "okay";
+};
+
+&rknn_mmu_0 {
+	status = "okay";
+};
+
+&rknn_core_1 {
+	npu-supply = <&vdd_npu_s0>;
+	sram-supply = <&vdd_npu_s0>;
+	status = "okay";
+};
+
+&rknn_mmu_1 {
+	status = "okay";
+};
+
+&rknn_core_2 {
+	npu-supply = <&vdd_npu_s0>;
+	sram-supply = <&vdd_npu_s0>;
+	status = "okay";
+};
+
+&rknn_mmu_2 {
+	status = "okay";
+};
+
+/*
+ * RK3588's TRNG reset is optional in the Linux driver. The SCMI reset
+ * provider in this firmware does not expose this domain, so keep the TRNG
+ * from deferring forever while retaining its SCMI clock.
+ */
+&{/rng@fe378000} {
+	/delete-property/ resets;
+};
+
+&pwm11 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm11m3_pins>;
+	status = "okay";
+};
+
+&saradc {
+	vref-supply = <&vcc_1v8_s0>;
+	status = "okay";
+};
+
+&u2phy0_otg {
+	status = "okay";
+};
+
+&u2phy2_host {
+	phy-supply = <&vcc5v0_host>;
+	status = "okay";
+};
+
+&u2phy3_host {
+	phy-supply = <&vcc5v0_host>;
+	status = "okay";
+};
+
+&usb_host0_xhci {
+	/delete-property/ extcon;
+	dr_mode = "otg";
+	usb-role-switch;
+	status = "okay";
+
+	port {
+		dwc3_0_role_switch: endpoint {
+			remote-endpoint = <&usbc0_role_sw>;
+		};
+	};
+};
+
+&usbdp_phy0 {
+	status = "okay";
+	mode-switch;
+	orientation-switch;
+	sbu1-dc-gpios = <&gpio4 RK_PB5 GPIO_ACTIVE_HIGH>;
+	sbu2-dc-gpios = <&gpio4 RK_PA7 GPIO_ACTIVE_HIGH>;
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		usbdp_phy0_orientation_switch: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&usbc0_orien_sw>;
+		};
+
+		usbdp_phy0_dp_altmode_mux: endpoint@1 {
+			reg = <1>;
+			remote-endpoint = <&dp_altmode_mux>;
+		};
+	};
+};

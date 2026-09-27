@@ -22,6 +22,10 @@
   #
   DEFINE RK_RTC8563_ENABLE = TRUE
 
+  # This is an AArch64 platform. Do not emulate x64 EFI applications: Linux
+  # and Windows images supported by this board must use their AA64 boot files.
+  DEFINE RK_X86_EMULATOR_ENABLE = FALSE
+
   #
   # RK3588S-based platform
   #
@@ -61,9 +65,20 @@
   # PCIe/SATA/USB Combo PIPE PHY support flags and default values
   #
   gRK3588TokenSpaceGuid.PcdComboPhy0Switchable|TRUE
-  gRK3588TokenSpaceGuid.PcdComboPhy2Switchable|TRUE
+  # Combo PHY2 is wired to the USB3 host on this board, so keep it fixed to
+  # USB3 and ignore stale setup variables that could enable unused PCI domain 3.
+  gRK3588TokenSpaceGuid.PcdComboPhy2Switchable|FALSE
   gRK3588TokenSpaceGuid.PcdComboPhy0ModeDefault|$(COMBO_PHY_MODE_PCIE)
+  # The board routes M.2 NVMe through PCIe2x1l2 / Combo PHY0.
+  # Combo PHY2 is used by the USB3 host, as in the Firefly BSP DTS.
   gRK3588TokenSpaceGuid.PcdComboPhy2ModeDefault|$(COMBO_PHY_MODE_USB3)
+
+  #
+  # Ubuntu 26.04 generic uses the upstream RK3588 Device Tree drivers for
+  # thermal control. Keep ACPI available for Windows, but default to DT.
+  #
+  gRK3588TokenSpaceGuid.PcdConfigTableModeDefault|$(CONFIG_TABLE_MODE_FDT)
+  gRK3588TokenSpaceGuid.PcdFdtCompatModeDefault|$(FDT_COMPAT_MODE_MAINLINE)
 
   #
   # USB/DP Combo PHY support flags and default values
@@ -105,7 +120,12 @@
   Platform/Firefly/ROC-RK3588S-PC/AcpiTables/AcpiTables.inf
 
   # Device Tree Support
-  Platform/Firefly/ROC-RK3588S-PC/DeviceTree/Vendor.inf
+  Platform/Firefly/ROC-RK3588S-PC/DeviceTree/Mainline.inf
 
   # Splash screen logo
   $(VENDOR_DIRECTORY)/Drivers/LogoDxe/LogoDxe.inf
+
+[PcdsDynamicHii.common.DEFAULT]
+  # Full fan duty is the safe pre-OS default and remains fixed in ACPI mode.
+  # Ubuntu takes over fan control through the Mainline DT thermal cooling map.
+  gRK3588TokenSpaceGuid.PcdCoolingFanSpeed|L"CoolingFanSpeed"|gRK3588DxeFormSetGuid|0x0|100

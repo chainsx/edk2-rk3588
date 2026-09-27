@@ -70,9 +70,10 @@ Note that this list is subject to change at any time as devices gain better supp
 | OS | Version | Tested/supported hardware | Notes |
 | --- | --- | --- | --- |
 | Generic upstream Linux | Kernel 6.10 or newer.<br> Tested with:<br> - Ubuntu 24.10<br> - Fedora Workstation 41<br> - Fedora Workstation Rawhide | Platform and kernel version dependent, see [Collabora's RK3588 upstream status](https://gitlab.collabora.com/hardware-enablement/rockchip-3588/notes-for-rockchip-3588/-/blob/main/mainline-status.md). | * Kernels older than 6.15 lack display output. To work around this, see: [Device Tree configuration](#device-tree-configuration). |
+| Ubuntu | 26.04 arm64 generic, kernel 7.0.x | ROC-RK3588S-PC board DTS, including automatic fan control, NVMe, storage, Ethernet, display, USB-C/DP, audio and RTC. | Select `Device Tree` and `Mainline`. Combo PHY0 provides M.2 NVMe PCIe; Combo PHY2 defaults to USB3 as on the board. See the [board and kernel support analysis](docs/roc-rk3588s-pc-ubuntu-26.04.md). |
 
 > [!NOTE]
-> Mainline support is only available on [Platinum](#platinum) platforms.
+> Mainline support is available on [Platinum](#platinum) platforms and on the ROC-RK3588S-PC for Ubuntu 26.04 arm64 generic. The ROC image contains no Vendor/BSP DTB.
 
 # Supported peripherals in UEFI
 
@@ -120,6 +121,7 @@ If your platform is not yet supported, using an image meant for another device i
 ## 3. Flash the firmware
 UEFI can be flashed to either an SPI NOR flash, SD card or eMMC module:
 * For removable SD or eMMC (easiest), you can simply use balenaEtcher, RPi Imager or dd.
+  When building this repository, use the generated `RK3588_EMMC_SD.img` for direct writing to an SD card or eMMC device. It contains the firmware boot layout only, not an operating system image.
 * For SPI NOR or soldered eMMC, instructions can be found at: <https://docs.radxa.com/en/rock5/lowlevel-development/bootloader_spi_flash>.
 
   In short, you can flash the image from Linux booted on the device or by using RKDevTool on another computer. The latter requires entering Maskrom mode on the device. The way to do this slightly varies across platforms, refer to your vendor documentation.
@@ -165,10 +167,12 @@ Configuration through the user interface is fairly straightforward and help/navi
 For rich Linux support, it is recommended to enable Device Tree mode. You can do so by going to `Device Manager`->`Rockchip Platform Configuration`->`ACPI / Device Tree` and setting `Config Table Mode` to `Device Tree`.
 
 The firmware provides two compatibility modes:
-* `Vendor` - compatible with Rockchip SDK Linux 5.10/6.1 kernel only.
-* `Mainline` - compatible with generic upstream Linux 6.10 or newer kernel. This option is under active development and may lack certain features. Therefore, it is always recommended to use the latest kernel and firmware available in order to benefit from better device support.
+* `Vendor` - available only on platforms that bundle a Vendor DTB; compatible with the corresponding Rockchip SDK kernel.
+* `Mainline` - compatible with generic upstream Linux. The ROC-RK3588S-PC firmware defaults to this mode and targets Ubuntu 26.04 arm64 generic kernel 7.0.x.
 
-[Platinum](#platinum) platforms will have the `Mainline` option enabled by default, while [Bronze](#bronze) ones will fall back to `Vendor`.
+[Platinum](#platinum) platforms and the ROC-RK3588S-PC default to `Mainline`; other [Bronze](#bronze) platforms may default to `Vendor`.
+
+On the ROC-RK3588S-PC, use `Device Tree` + `Mainline` for Ubuntu. The Ubuntu generic kernel's Rockchip thermal sensor and PWM fan drivers need the DT cooling map to control the fan automatically. Select `ACPI` for Windows; the fan stays at the firmware's full-speed default because the generic kernel's Rockchip thermal/PWM control is Device Tree based.
 
 > [!TIP]
 > In `Mainline` mode with generic Linux kernels older than 6.15, the HDMI output will not be usable. To use the UEFI-initialized display instead, go to `Device Manager`->`Rockchip Platform Configuration`->`ACPI / Device Tree` and enable `Force UEFI GOP Display`. Note that GPU acceleration cannot work in this mode.

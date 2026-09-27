@@ -10,3 +10,4 @@ ramdisk
 *.rej
 *.orig
 *_FLASH.img
+*_EMMC_SD.img

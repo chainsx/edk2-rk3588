@@ -21,6 +21,11 @@
 #define BOARD_CODEC_GPIO "\\_SB.GPI1"
 #define BOARD_CODEC_GPIO_PIN GPIO_PIN_PA6
 
+#define BOARD_RTC_I2C "\\_SB.I2C2"
+#define BOARD_RTC_I2C_ADDR 0x51
+#define BOARD_RTC_GPIO "\\_SB.GPI0"
+#define BOARD_RTC_GPIO_PIN GPIO_PIN_PB0
+
 DefinitionBlock ("Dsdt.aml", "DSDT", 2, "RKCP  ", "RK3588  ", 2)
 {
   Scope (\_SB_)
@@ -48,6 +53,10 @@ DefinitionBlock ("Dsdt.aml", "DSDT", 2, "RKCP  ", "RK3588  ", 2)
 
     Scope (I2C3) {
       include ("Es8388.asl")
+    }
+
+    Scope (I2C2) {
+      include ("Hym8563.asl")
     }
   }
 }

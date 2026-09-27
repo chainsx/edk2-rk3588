@@ -20,14 +20,22 @@ STATIC_ASSERT (ARRAY_SIZE (mOsTypeStrings) == ExitBootServicesOsMax);
 
 #define LINUX_ARM64_MAGIC  0x644d5241
 #define LINUX_PE_MAGIC     0x818223cd
+#define LINUX_PE_MAGIC_OFFSET  0x38
 
 STATIC
 BOOLEAN
 IsPeImageVmlinuz (
-  IN VOID  *PeImage
+  IN VOID  *PeImage,
+  IN UINTN  PeImageSize
   )
 {
-  UINT8  *Buf = PeImage;
+  UINT8  *Buf;
+
+  if ((PeImage == NULL) || (PeImageSize < (LINUX_PE_MAGIC_OFFSET + sizeof (UINT32)))) {
+    return FALSE;
+  }
+
+  Buf = PeImage;
 
   switch (*(UINT32 *)(Buf + 0x38)) {
     case LINUX_ARM64_MAGIC:
@@ -43,13 +51,49 @@ STATIC CHAR8  mWinLoadNameStr[] = "winload";
 
 STATIC
 BOOLEAN
+IsValidPeImage (
+  IN VOID  *PeImage,
+  IN UINTN  PeImageSize
+  )
+{
+  EFI_IMAGE_DOS_HEADER  *DosHdr;
+  UINTN                 PeHeaderOffset;
+  UINT8                 *PeHeader;
+
+  if ((PeImage == NULL) || (PeImageSize < sizeof (EFI_IMAGE_DOS_HEADER))) {
+    return FALSE;
+  }
+
+  DosHdr = PeImage;
+  if (DosHdr->e_magic != EFI_IMAGE_DOS_SIGNATURE) {
+    return FALSE;
+  }
+
+  PeHeaderOffset = (UINTN)DosHdr->e_lfanew;
+  if (((PeHeaderOffset & (sizeof (UINT32) - 1)) != 0) ||
+      (PeHeaderOffset > (PeImageSize - sizeof (UINT32))))
+  {
+    return FALSE;
+  }
+
+  PeHeader = (UINT8 *)PeImage + PeHeaderOffset;
+  return (*(UINT32 *)PeHeader == EFI_IMAGE_NT_SIGNATURE);
+}
+
+STATIC
+BOOLEAN
 IsPeImageWinLoader (
-  IN VOID  *PeImage
+  IN VOID  *PeImage,
+  IN UINTN  PeImageSize
   )
 {
   CHAR8  *PdbStr;
   UINTN  WinLoadNameStrLen;
   UINTN  Index;
+
+  if (!IsValidPeImage (PeImage, PeImageSize)) {
+    return FALSE;
+  }
 
   PdbStr = (CHAR8 *)PeCoffLoaderGetPdbPointer (PeImage);
   if (PdbStr == NULL) {
@@ -67,49 +111,21 @@ IsPeImageWinLoader (
   return FALSE;
 }
 
-EFI_PHYSICAL_ADDRESS
-FindPeImageBase (
-  IN EFI_PHYSICAL_ADDRESS  Base
-  )
-{
-  EFI_IMAGE_DOS_HEADER                 *DosHdr;
-  EFI_IMAGE_OPTIONAL_HEADER_PTR_UNION  Hdr;
-
-  Base &= ~(EFI_PAGE_SIZE - 1);
-
-  while (Base != 0) {
-    DosHdr = (EFI_IMAGE_DOS_HEADER *)Base;
-    if (DosHdr->e_magic == EFI_IMAGE_DOS_SIGNATURE) {
-      Hdr.Pe32 = (EFI_IMAGE_NT_HEADERS32 *)(Base + DosHdr->e_lfanew);
-      if (Hdr.Pe32->Signature == EFI_IMAGE_NT_SIGNATURE) {
-        break;
-      }
-    }
-
-    Base -= EFI_PAGE_SIZE;
-  }
-
-  return Base;
-}
-
 EXIT_BOOT_SERVICES_OS_TYPE
 IdentifyOsType (
-  IN EFI_PHYSICAL_ADDRESS  OsLoaderAddress
+  IN VOID  *OsLoaderImage,
+  IN UINTN  OsLoaderImageSize
   )
 {
-  VOID  *OsLoaderImage;
-
-  if (OsLoaderAddress == 0) {
+  if (OsLoaderImage == NULL) {
     return ExitBootServicesOsUnknown;
   }
 
-  OsLoaderImage = (VOID *)OsLoaderAddress;
-
-  if (IsPeImageVmlinuz (OsLoaderImage)) {
+  if (IsPeImageVmlinuz (OsLoaderImage, OsLoaderImageSize)) {
     return ExitBootServicesOsLinux;
   }
 
-  if (IsPeImageWinLoader (OsLoaderImage)) {
+  if (IsPeImageWinLoader (OsLoaderImage, OsLoaderImageSize)) {
     return ExitBootServicesOsWindows;
   }
 

@@ -3,8 +3,6 @@
 * <https://github.com/armbian/linux-rockchip/tree/f3fb30ac9de06b41fb621d17bc53603f1f48ac90/arch/arm64/boot/dts/rockchip>
   * Updated to `rk-6.1-rkr1` branch, currently called `vendor` branch in armbian/build
 
-* roc-rk3588s-pc: <https://gitlab.com/firefly-linux/kernel/-/tree/b8646da2122f45a2c02082d949427b80d2e89b1f/arch/arm64/boot/dts/rockchip>
-
 * itx-3588j: <https://gitlab.com/firefly-linux/kernel/-/tree/e14c28295dd7ee8f807899e9b0b7da5f79742e4f/arch/arm64/boot/dts/rockchip>
   (note: in the dtb given here, the builtin bootargs in the source above were commented out
    before building. Not sure if that was a necessary step - SS)

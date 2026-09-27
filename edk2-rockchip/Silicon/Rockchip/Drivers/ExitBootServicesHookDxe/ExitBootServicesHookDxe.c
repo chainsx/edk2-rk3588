@@ -8,6 +8,7 @@
 
 #include <Library/MemoryAllocationLib.h>
 #include <Library/UefiBootServicesTableLib.h>
+#include <Protocol/LoadedImage.h>
 
 #include "ExitBootServicesHook.h"
 
@@ -106,14 +107,28 @@ ExitBootServicesHook (
   )
 {
   EXIT_BOOT_SERVICES_OS_CONTEXT        Context;
+  EFI_LOADED_IMAGE_PROTOCOL           *LoadedImage;
+  EFI_STATUS                          Status;
   LIST_ENTRY                           *Link;
   EXIT_BOOT_SERVICES_OS_HANDLER_ENTRY  *Entry;
 
   Context.ReturnAddress = (EFI_PHYSICAL_ADDRESS)RETURN_ADDRESS (0);
   ASSERT (Context.ReturnAddress != 0);
 
-  Context.OsLoaderAddress = FindPeImageBase (Context.ReturnAddress);
-  Context.OsType          = IdentifyOsType (Context.OsLoaderAddress);
+  // Use the caller image handle instead of scanning arbitrary memory for an MZ signature.
+  Status = gBS->HandleProtocol (
+                  ImageHandle,
+                  &gEfiLoadedImageProtocolGuid,
+                  (VOID **)&LoadedImage
+                  );
+  if (EFI_ERROR (Status) || (LoadedImage == NULL)) {
+    Context.OsLoaderAddress = 0;
+    Context.OsType          = ExitBootServicesOsUnknown;
+    DEBUG ((DEBUG_WARN, "ExitBootServices: failed to get caller image: %r\n", Status));
+  } else {
+    Context.OsLoaderAddress = (EFI_PHYSICAL_ADDRESS)(UINTN)LoadedImage->ImageBase;
+    Context.OsType          = IdentifyOsType (LoadedImage->ImageBase, LoadedImage->ImageSize);
+  }
 
   DEBUG ((
     DEBUG_INFO,

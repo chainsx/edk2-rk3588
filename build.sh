@@ -198,6 +198,8 @@ function _pack_image() {
     # FIT Image at 0x100000
     dd if=${WORKSPACE}/${DEVICE}_EFI.itb of=${WORKSPACE}/RK3588_NOR_FLASH.img bs=1K seek=1024
     cp ${WORKSPACE}/RK3588_NOR_FLASH.img ${ROOTDIR}/
+    cp ${WORKSPACE}/RK3588_NOR_FLASH.img ${WORKSPACE}/RK3588_EMMC_SD.img
+    cp ${WORKSPACE}/RK3588_EMMC_SD.img ${ROOTDIR}/
 }
 
 function _build(){
@@ -216,7 +218,7 @@ function _build(){
     fi
     typeset -l SOC_L="$SOC"
 
-    rm -f "${OUTDIR}/RK35*_NOR_FLASH.img"
+    rm -f "${OUTDIR}"/RK35*_NOR_FLASH.img "${OUTDIR}"/RK35*_EMMC_SD.img
 
     #
     # Build TF-A
@@ -278,7 +280,7 @@ function _build(){
     #
     _pack_image
 
-    echo "Build done: RK3588_NOR_FLASH.img"
+    echo "Build done: RK3588_NOR_FLASH.img and RK3588_EMMC_SD.img"
 }
 
 function _clean() { rm --one-file-system --recursive --force "${OUTDIR}"/workspace "${OUTDIR}"/RK3588_*.img; }

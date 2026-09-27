@@ -10,7 +10,7 @@
   INF RuleOverride = ACPITABLE Platform/Firefly/ROC-RK3588S-PC/AcpiTables/AcpiTables.inf
 
   # Device Tree Support
-  INF RuleOverride = DTB Platform/Firefly/ROC-RK3588S-PC/DeviceTree/Vendor.inf
+  INF RuleOverride = DTB Platform/Firefly/ROC-RK3588S-PC/DeviceTree/Mainline.inf
 
   # Splash screen logo
   INF $(VENDOR_DIRECTORY)/Drivers/LogoDxe/LogoDxe.inf
